@@ -19,6 +19,9 @@ final class DisplayManager: ObservableObject {
     /// All currently connected displays
     @Published private(set) var displays: [Display] = []
     
+    /// Set of display IDs that are currently blacked out (triggers UI refresh)
+    @Published private(set) var blackedOutDisplayIDs: Set<DisplayIdentifier> = []
+    
     /// Whether auto-blackout for built-in display is enabled
     @Published var autoBlackoutBuiltin: Bool {
         didSet {
@@ -94,17 +97,19 @@ final class DisplayManager: ObservableObject {
     func blackout(display: Display) {
         activeProvider.blackout(display: display)
         settingsManager.settings.setBlackedOut(true, for: display.id)
+        blackedOutDisplayIDs.insert(display.id)
     }
     
     /// Restores a display from blackout
     func restore(display: Display) {
         activeProvider.restore(display: display)
         settingsManager.settings.setBlackedOut(false, for: display.id)
+        blackedOutDisplayIDs.remove(display.id)
     }
     
     /// Checks if a display is currently blacked out
     func isBlackedOut(display: Display) -> Bool {
-        activeProvider.isBlackedOut(display: display)
+        blackedOutDisplayIDs.contains(display.id)
     }
     
     /// Returns the built-in display if present
@@ -145,6 +150,7 @@ final class DisplayManager: ObservableObject {
         for display in displays {
             if settingsManager.settings.isBlackedOut(displayID: display.id) {
                 activeProvider.blackout(display: display)
+                blackedOutDisplayIDs.insert(display.id)
             }
         }
         
@@ -172,6 +178,7 @@ final class DisplayManager: ObservableObject {
                 // Both providers should clean up
                 WindowBlackoutProvider.shared.restore(display: removedDisplay)
                 SoftwareBlackoutProvider.shared.restore(display: removedDisplay)
+                blackedOutDisplayIDs.remove(removedID)
             }
         }
         
@@ -180,6 +187,7 @@ final class DisplayManager: ObservableObject {
             if let addedDisplay = displays.first(where: { $0.id == addedID }),
                settingsManager.settings.isBlackedOut(displayID: addedID) {
                 activeProvider.blackout(display: addedDisplay)
+                blackedOutDisplayIDs.insert(addedID)
             }
         }
         
@@ -228,7 +236,7 @@ final class DisplayManager: ObservableObject {
         
         // Transfer blackout states from old to new provider
         for display in displays {
-            if oldProvider.isBlackedOut(display: display) {
+            if blackedOutDisplayIDs.contains(display.id) {
                 oldProvider.restore(display: display)
                 newProvider.blackout(display: display)
             }
