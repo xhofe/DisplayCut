@@ -98,6 +98,9 @@ final class DisplayManager: ObservableObject {
         activeProvider.blackout(display: display)
         settingsManager.settings.setBlackedOut(true, for: display.id)
         blackedOutDisplayIDs.insert(display.id)
+        
+        // Block mouse from entering this display
+        MouseGuard.shared.blockDisplay(display)
     }
     
     /// Restores a display from blackout
@@ -105,6 +108,9 @@ final class DisplayManager: ObservableObject {
         activeProvider.restore(display: display)
         settingsManager.settings.setBlackedOut(false, for: display.id)
         blackedOutDisplayIDs.remove(display.id)
+        
+        // Allow mouse to enter this display again
+        MouseGuard.shared.unblockDisplay(display)
     }
     
     /// Checks if a display is currently blacked out
@@ -151,6 +157,7 @@ final class DisplayManager: ObservableObject {
             if settingsManager.settings.isBlackedOut(displayID: display.id) {
                 activeProvider.blackout(display: display)
                 blackedOutDisplayIDs.insert(display.id)
+                MouseGuard.shared.blockDisplay(display)
             }
         }
         
@@ -178,6 +185,7 @@ final class DisplayManager: ObservableObject {
                 // Both providers should clean up
                 WindowBlackoutProvider.shared.restore(display: removedDisplay)
                 SoftwareBlackoutProvider.shared.restore(display: removedDisplay)
+                MouseGuard.shared.unblockDisplay(removedDisplay)
                 blackedOutDisplayIDs.remove(removedID)
             }
         }
@@ -188,6 +196,7 @@ final class DisplayManager: ObservableObject {
                settingsManager.settings.isBlackedOut(displayID: addedID) {
                 activeProvider.blackout(display: addedDisplay)
                 blackedOutDisplayIDs.insert(addedID)
+                MouseGuard.shared.blockDisplay(addedDisplay)
             }
         }
         
